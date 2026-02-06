@@ -13,10 +13,11 @@ export default function Home() {
     setLoading(true);
     fetch(`/api/products?q=${keyword}`)
       .then((res) => res.json())
+      
       .then((data) => {
-        setProducts(data);
-        setLoading(false);
-      })
+  setProducts(Array.isArray(data) ? data : []);
+  setLoading(false);
+})
       .catch((err) => console.error(err));
   };
 

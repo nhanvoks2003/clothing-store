@@ -22,9 +22,11 @@ export async function GET(request: Request) {
     const { rows } = await pool.query(query, values);
     return NextResponse.json(rows);
   } catch (error) {
-    return NextResponse.json({ error: 'Lỗi lấy dữ liệu' }, { status: 500 });
-  }
+  console.error(error);
+  return NextResponse.json([], { status: 200 });
 }
+  }
+
 
 // 2. POST: Thêm sản phẩm mới (Giữ nguyên không đổi)
 export async function POST(request: Request) {
