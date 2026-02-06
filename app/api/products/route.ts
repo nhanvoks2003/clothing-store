@@ -1,46 +1,69 @@
 import { NextResponse } from 'next/server';
-import pool from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
-// 1. GET: Lấy danh sách (Có hỗ trợ tìm kiếm ?q=...)
+/* =========================
+   GET: Lấy danh sách sản phẩm
+   Có hỗ trợ ?q=...
+========================= */
 export async function GET(request: Request) {
   try {
-    // Lấy từ khóa tìm kiếm từ URL (ví dụ: /api/products?q=áo)
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('q');
 
-    let query = 'SELECT * FROM products';
-    let values: any[] = [];
+    let query = supabase
+      .from('products')
+      .select('*')
+      .order('id', { ascending: false });
 
-    // Nếu có từ khóa tìm kiếm
     if (search) {
-      query += ' WHERE name ILIKE $1 OR description ILIKE $1'; // ILIKE giúp tìm không phân biệt hoa thường
-      values = [`%${search}%`];
+      query = query.or(
+        `name.ilike.%${search}%,description.ilike.%${search}%`
+      );
     }
 
-    query += ' ORDER BY id DESC';
+    const { data, error } = await query;
 
-    const { rows } = await pool.query(query, values);
-    return NextResponse.json(rows);
-  } catch (error) {
-  console.error(error);
-  return NextResponse.json([], { status: 200 });
-}
+    if (error) {
+      console.error('Supabase GET error:', error);
+      return NextResponse.json([], { status: 200 });
+    }
+
+    return NextResponse.json(data ?? []);
+  } catch (err) {
+    console.error('API GET error:', err);
+    return NextResponse.json([], { status: 200 });
   }
+}
 
-
-// 2. POST: Thêm sản phẩm mới (Giữ nguyên không đổi)
+/* =========================
+   POST: Thêm sản phẩm mới
+========================= */
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { name, description, price, image } = body;
-    const priceNumber = parseFloat(price);
 
-    const query = 'INSERT INTO products (name, description, price, image) VALUES ($1, $2, $3, $4) RETURNING *';
-    const values = [name, description, priceNumber, image];
-    
-    const { rows } = await pool.query(query, values);
-    return NextResponse.json(rows[0], { status: 201 });
-  } catch (error) {
+    const { data, error } = await supabase
+      .from('products')
+      .insert([
+        {
+          name,
+          description,
+          price: Number(price),
+          image,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Supabase POST error:', error);
+      return NextResponse.json({ error: 'Lỗi thêm mới' }, { status: 500 });
+    }
+
+    return NextResponse.json(data, { status: 201 });
+  } catch (err) {
+    console.error('API POST error:', err);
     return NextResponse.json({ error: 'Lỗi thêm mới' }, { status: 500 });
   }
 }
